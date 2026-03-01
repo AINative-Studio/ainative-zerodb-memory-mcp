@@ -1,6 +1,6 @@
 {
   "name": "ainative-zerodb-memory-mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "AINative ZeroDB Memory MCP Server - 6 optimized tools for agent memory with smart context management, semantic search, and automatic pruning. 92% smaller than monolithic server. Production-ready for Claude, Windsurf, and AI assistants.",
   "main": "index.js",
   "type": "module",
