@@ -68,9 +68,9 @@ export ZERODB_PROJECT_ID="your-project-id"
       "args": ["/path/to/zerodb-memory-mcp/index.js"],
       "env": {
         "ZERODB_API_URL": "http://localhost:8000",
-        "ZERODB_USERNAME": "admin@ainative.studio",
-        "ZERODB_PASSWORD": "Admin2025!Secure",
-        "ZERODB_PROJECT_ID": "local-dev"
+        "ZERODB_USERNAME": "your-username",
+        "ZERODB_PASSWORD": "your-password",
+        "ZERODB_PROJECT_ID": "your-project-id"
       }
     }
   }
@@ -87,9 +87,9 @@ export ZERODB_PROJECT_ID="your-project-id"
       "args": ["/path/to/zerodb-memory-mcp/index.js"],
       "env": {
         "ZERODB_API_URL": "http://localhost:8000",
-        "ZERODB_USERNAME": "admin@ainative.studio",
-        "ZERODB_PASSWORD": "Admin2025!Secure",
-        "ZERODB_PROJECT_ID": "local-dev"
+        "ZERODB_USERNAME": "your-local-username",
+        "ZERODB_PASSWORD": "your-local-password",
+        "ZERODB_PROJECT_ID": "your-local-project-id"
       }
     },
     "zerodb-cloud": {
@@ -97,9 +97,9 @@ export ZERODB_PROJECT_ID="your-project-id"
       "args": ["/path/to/zerodb-memory-mcp/index.js"],
       "env": {
         "ZERODB_API_URL": "https://api.ainative.studio",
-        "ZERODB_USERNAME": "your-email@example.com",
-        "ZERODB_PASSWORD": "your-password",
-        "ZERODB_PROJECT_ID": "prod-project"
+        "ZERODB_USERNAME": "your-cloud-username",
+        "ZERODB_PASSWORD": "your-cloud-password",
+        "ZERODB_PROJECT_ID": "your-cloud-project-id"
       }
     }
   }
