@@ -99,22 +99,33 @@ export class ZeroDBClient {
   }
 
   /**
-   * Validate authentication by calling /api/v1/auth/me
-   * Logs a clear error if credentials are invalid but does not throw
+   * Validate authentication by making a lightweight authenticated request.
+   * Uses /api/v1/auth/me for JWT, or a test memory search for API keys
+   * (since /auth/me requires JWT). Logs a clear error if credentials are
+   * invalid but does not throw.
    */
   async validateAuth() {
     try {
       const headers = { 'Content-Type': 'application/json' };
+      let validateUrl;
+
       if (this.apiKey) {
         headers['X-API-Key'] = this.token;
+        // /auth/me doesn't accept API keys — use a lightweight memory search instead
+        validateUrl = `${this.apiUrl}/api/v1/public/memory/v2/recall`;
+        const response = await axios.post(validateUrl, { query: '__auth_check__', limit: 1 }, { headers, timeout: 10000 });
+        if (response.status === 200) {
+          console.error('✅ Auth validated - API key is working');
+          this.authValid = true;
+        }
       } else {
         headers['Authorization'] = `Bearer ${this.token}`;
-      }
-
-      const response = await axios.get(`${this.apiUrl}/api/v1/auth/me`, { headers, timeout: 10000 });
-      if (response.status === 200) {
-        console.error('✅ Auth validated - credentials are working');
-        this.authValid = true;
+        validateUrl = `${this.apiUrl}/api/v1/auth/me`;
+        const response = await axios.get(validateUrl, { headers, timeout: 10000 });
+        if (response.status === 200) {
+          console.error('✅ Auth validated - credentials are working');
+          this.authValid = true;
+        }
       }
     } catch (error) {
       this.authValid = false;
@@ -210,36 +221,14 @@ export class ZeroDBClient {
    * Store memory with automatic embedding
    */
   async storeMemory({ content, role = 'user', sessionId, metadata = {}, importance = null }) {
-    const path = `/api/v1/public/memory/`;
-
-    // Map curriculum fields to API fields
-    const priorityMap = {
-      'system': 'high',
-      'user': 'medium',
-      'assistant': 'low'
-    };
-
-    // If importance provided, use it to determine priority
-    let priority = 'medium';
-    if (importance !== null) {
-      if (importance >= 0.8) priority = 'critical';
-      else if (importance >= 0.6) priority = 'high';
-      else if (importance >= 0.4) priority = 'medium';
-      else priority = 'low';
-    } else {
-      priority = priorityMap[role] || 'medium';
-    }
+    const path = `/api/v1/public/memory/v2/remember`;
 
     return await this.request('POST', path, {
-      title: `${role} memory`,
       content,
-      type: 'conversation',  // API uses 'type' not 'role'
-      priority,               // API uses 'priority' not 'importance'
-      tags: [],
+      session_id: sessionId,
       metadata: {
         ...metadata,
-        role,                 // Store original role in metadata
-        session_id: sessionId, // Store session_id in metadata
+        role,
         importance,
         timestamp: new Date().toISOString()
       }
@@ -250,28 +239,15 @@ export class ZeroDBClient {
    * Search memory semantically
    */
   async searchMemory({ query, limit = 10, sessionId = null, scope = 'session' }) {
-    const path = `/api/v1/public/memory/search`;
-
-    // API doesn't support session_id or scope, so we'll fetch more results
-    // and filter client-side
-    const fetchLimit = sessionId ? limit * 3 : limit;
+    const path = `/api/v1/public/memory/v2/recall`;
 
     const results = await this.request('POST', path, {
       query,
-      limit: fetchLimit
+      limit,
+      session_id: sessionId
     });
 
-    // Client-side filtering by session if needed
-    let filteredResults = Array.isArray(results) ? results : (results.memories || []);
-
-    if (sessionId && scope === 'session') {
-      filteredResults = filteredResults.filter(memory =>
-        memory.metadata?.session_id === sessionId
-      );
-    }
-
-    // Return up to requested limit
-    return filteredResults.slice(0, limit);
+    return results.results || results.memories || [];
   }
 
   /**
@@ -279,13 +255,16 @@ export class ZeroDBClient {
    * Client-side implementation since API doesn't provide context endpoint
    */
   async getContext({ sessionId, maxTokens = 8192 }) {
-    // Fetch all memories (API returns them ordered by recency)
-    const path = `/api/v1/public/memory/`;
-    const allMemories = await this.request('GET', path);
+    // Fetch recent memories for this session via recall
+    const path = `/api/v1/public/memory/v2/recall`;
+    const allMemories = await this.request('POST', path, {
+      query: sessionId,
+      limit: 50,
+      session_id: sessionId
+    });
 
-    // Filter by session
-    const sessionMemories = (Array.isArray(allMemories) ? allMemories : allMemories.memories || [])
-      .filter(memory => memory.metadata?.session_id === sessionId);
+    // Extract results from v2 response
+    const sessionMemories = allMemories.results || allMemories.memories || (Array.isArray(allMemories) ? allMemories : []);
 
     // Simple token estimation (4 chars ≈ 1 token)
     let totalTokens = 0;
