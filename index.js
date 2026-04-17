@@ -93,6 +93,12 @@ async function initialize() {
   client = new ZeroDBClient(config);
   await client.initialize();
 
+  // Warn if auth validation failed (tools that need auth will fail at runtime)
+  if (client.authValid === false) {
+    console.error('  Memory tools requiring authentication will return 401 errors.');
+    console.error('  Server will continue running - some tools may still work.\n');
+  }
+
   // Create memory manager with advanced features
   memoryManager = new MemoryManager(client, config);
 

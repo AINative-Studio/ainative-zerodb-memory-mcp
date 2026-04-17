@@ -49,12 +49,28 @@ npm start
 
 ## Configuration
 
+### Credentials
+
+```bash
+# Recommended: API key auth (no login needed)
+ZERODB_API_KEY=sk_xxx
+ZERODB_API_URL=https://api.ainative.studio
+ZERODB_PROJECT_ID=your-project-id
+
+# OR username/password auth:
+ZERODB_USERNAME=your@email.com
+ZERODB_PASSWORD=your-password
+ZERODB_API_URL=https://api.ainative.studio
+ZERODB_PROJECT_ID=your-project-id
+```
+
+> **Tip:** API key authentication (`ZERODB_API_KEY`) is preferred over username/password. It avoids token expiry issues and is not affected by shell environment variable conflicts.
+
 ### Option 1: Environment Variables
 
 ```bash
 export ZERODB_API_URL="http://localhost:8000"  # or cloud URL
-export ZERODB_USERNAME="your-email@example.com"
-export ZERODB_PASSWORD="your-password"
+export ZERODB_API_KEY="sk_your-api-key"        # recommended
 export ZERODB_PROJECT_ID="your-project-id"
 ```
 
@@ -530,9 +546,16 @@ npm run dev
 
 ## Troubleshooting
 
-### Error: "Authentication failed"
+### Error: "Authentication failed" or 401 on store_memory
 
-**Check:**
+**Common cause:** Shell environment variables (`~/.zshrc`, `~/.bashrc`) override the credentials set in your MCP config (e.g., `.claude.json` or Claude Desktop config). The MCP server inherits all shell env vars, and stale `ZERODB_USERNAME`/`ZERODB_PASSWORD` values in your shell profile will take precedence.
+
+**Fix:**
+1. Remove or update stale `ZERODB_USERNAME`/`ZERODB_PASSWORD` exports from `~/.zshrc` or `~/.bashrc`
+2. Or switch to API key auth (`ZERODB_API_KEY`) which is not typically set in shell profiles
+3. Or set credentials explicitly in your MCP server config `env` block to override shell vars
+
+**Also check:**
 - `ZERODB_USERNAME` and `ZERODB_PASSWORD` are correct
 - Account exists in ZeroDB
 - Password hasn't changed

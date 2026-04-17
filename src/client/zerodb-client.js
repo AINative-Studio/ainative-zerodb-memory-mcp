@@ -37,6 +37,9 @@ export class ZeroDBClient {
     // Authenticate
     await this.authenticate();
 
+    // Validate auth by calling /api/v1/auth/me
+    await this.validateAuth();
+
     return this;
   }
 
@@ -92,6 +95,46 @@ export class ZeroDBClient {
       console.error('✅ Authenticated successfully with username/password');
     } catch (error) {
       throw new Error(`Authentication failed: ${error.response?.data?.detail || error.message}`);
+    }
+  }
+
+  /**
+   * Validate authentication by calling /api/v1/auth/me
+   * Logs a clear error if credentials are invalid but does not throw
+   */
+  async validateAuth() {
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (this.apiKey) {
+        headers['X-API-Key'] = this.token;
+      } else {
+        headers['Authorization'] = `Bearer ${this.token}`;
+      }
+
+      const response = await axios.get(`${this.apiUrl}/api/v1/auth/me`, { headers, timeout: 10000 });
+      if (response.status === 200) {
+        console.error('✅ Auth validated - credentials are working');
+        this.authValid = true;
+      }
+    } catch (error) {
+      this.authValid = false;
+      const status = error.response?.status;
+      const detail = error.response?.data?.detail || error.message;
+      console.error('');
+      console.error('===========================================');
+      console.error('  AUTH FAILED');
+      console.error('===========================================');
+      console.error(`  Status: ${status || 'N/A'}`);
+      console.error(`  Detail: ${detail}`);
+      console.error('');
+      console.error('  Your ZERODB credentials are invalid.');
+      console.error('  Check ZERODB_API_KEY or ZERODB_USERNAME/ZERODB_PASSWORD env vars.');
+      console.error('');
+      console.error('  Common cause: shell env vars (~/.zshrc, ~/.bashrc)');
+      console.error('  may override your MCP config. API key auth');
+      console.error('  (ZERODB_API_KEY) is recommended over username/password.');
+      console.error('===========================================');
+      console.error('');
     }
   }
 
