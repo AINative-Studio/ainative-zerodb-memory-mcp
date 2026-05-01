@@ -2,12 +2,12 @@
 
 **Persistent Memory for AI Agents**
 
-Optimized MCP server providing 6 focused tools for agent memory management with advanced context window optimization, semantic search, and cross-session memory.
+Optimized MCP server providing 7 focused tools for agent memory management with advanced context window optimization, semantic search, and cross-session memory.
 
 ## Why This MCP?
 
 **Before:** Monolithic server with 77 tools consuming 10,400+ tokens
-**After:** Focused server with 6 tools consuming ~800 tokens
+**After:** Focused server with 7 tools consuming ~900 tokens
 **Result:** **92% reduction** in context footprint, faster agent decisions, better accuracy
 
 ## Key Features
@@ -340,6 +340,39 @@ Clear all memories for a session.
 - Optional preservation of important memories
 - Returns deletion statistics
 
+### 7. `zerodb_synthesize_context`
+
+Retrieve and LLM-synthesize relevant memories into a coherent context string. Wraps `POST /memory/v2/context`. (Issue #2631)
+
+**Input:**
+```json
+{
+  "query": "What did we decide about the pricing model?",
+  "agent_id": "user-456",
+  "synthesis_style": "narrative",
+  "max_tokens": 1000,
+  "top_k": 10
+}
+```
+
+**Output:**
+```json
+{
+  "context": "In previous discussions, the team decided to use a usage-based pricing model...",
+  "synthesis_style": "narrative",
+  "sources_count": 5,
+  "confidence": 0.87,
+  "token_count": 312,
+  "agent_id": "user-456"
+}
+```
+
+**Features:**
+- Three synthesis styles: `narrative`, `bullet`, `structured`
+- Powered by Claude Haiku for fast, coherent summaries
+- Graceful fallback if synthesis fails (concatenates top snippets)
+- Scoped by `agent_id` for per-user memory isolation
+
 ---
 
 ## Advanced Configuration
@@ -632,7 +665,8 @@ echo $KEEP_RECENT
 │  ├── zerodb_get_context                    │
 │  ├── zerodb_embed_text                     │
 │  ├── zerodb_semantic_search                │
-│  └── zerodb_clear_session                  │
+│  ├── zerodb_clear_session                  │
+│  └── zerodb_synthesize_context             │
 │                                             │
 └─────────────────────────────────────────────┘
 ```

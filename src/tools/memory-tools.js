@@ -1,13 +1,14 @@
 /**
  * MCP Tools for Agent Memory Management
  *
- * 6 focused tools for persistent agent memory:
+ * 7 focused tools for persistent agent memory:
  * 1. zerodb_store_memory - Store conversation context
  * 2. zerodb_search_memory - Semantic memory retrieval
  * 3. zerodb_get_context - Get full session context window
  * 4. zerodb_embed_text - Generate embeddings
  * 5. zerodb_semantic_search - Search by meaning
  * 6. zerodb_clear_session - Reset conversation memory
+ * 7. zerodb_synthesize_context - LLM-synthesized context from memory (Issue #2631)
  */
 
 export const MEMORY_TOOLS = [
@@ -211,6 +212,45 @@ export const MEMORY_TOOLS = [
       },
       required: ['session_id', 'confirm']
     }
+  },
+
+  {
+    name: 'zerodb_synthesize_context',
+    description: 'Retrieve and LLM-synthesize relevant memories into a coherent context string. Searches memory for the query, retrieves top results, then uses Claude Haiku to synthesize a narrative, bullet list, or structured summary. Returns a ready-to-use context string for grounding AI responses.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'The question or topic to retrieve context for'
+        },
+        agent_id: {
+          type: 'string',
+          description: 'Agent or user identifier (used to scope memory retrieval)'
+        },
+        synthesis_style: {
+          type: 'string',
+          enum: ['narrative', 'bullet', 'structured'],
+          description: 'Output format: narrative prose, bullet points, or structured JSON-like summary',
+          default: 'narrative'
+        },
+        max_tokens: {
+          type: 'integer',
+          description: 'Maximum tokens in the synthesized context (default: 1000)',
+          default: 1000,
+          minimum: 100,
+          maximum: 8000
+        },
+        top_k: {
+          type: 'integer',
+          description: 'Number of memory results to retrieve before synthesis (default: 10)',
+          default: 10,
+          minimum: 1,
+          maximum: 50
+        }
+      },
+      required: ['query', 'agent_id']
+    }
   }
 ];
 
@@ -236,6 +276,9 @@ export async function executeMemoryTool(toolName, args, memoryManager) {
 
     case 'zerodb_clear_session':
       return await handleClearSession(args, memoryManager);
+
+    case 'zerodb_synthesize_context':
+      return await handleSynthesizeContext(args, memoryManager);
 
     default:
       throw new Error(`Unknown tool: ${toolName}`);
@@ -357,37 +400,56 @@ async function handleEmbedText(args, memoryManager) {
  * Semantic search handler
  */
 async function handleSemanticSearch(args, memoryManager) {
-  let vector = args.vector;
+  const filter = args.session_id ? { session_id: args.session_id } : null;
 
-  // If text provided, embed it first
-  if (args.text && !vector) {
-    const embedResult = await memoryManager.client.embedText(args.text);
-    vector = embedResult.embedding || embedResult.vector;
+  // If text provided, use the embeddings/search endpoint (single API call)
+  if (args.text) {
+    const results = await memoryManager.client.searchVectors({
+      text: args.text,
+      limit: args.limit || 10,
+      filter
+    });
+
+    // Normalize response format
+    const items = results.results || results.vectors || [];
+    const filtered = args.min_similarity
+      ? items.filter(r => (r.similarity || r.score) >= args.min_similarity)
+      : items;
+
+    return {
+      results: filtered.map(r => ({
+        content: r.document || r.payload?.content || r.metadata?.content,
+        similarity: r.similarity || r.score,
+        metadata: r.metadata || r.payload
+      })),
+      count: filtered.length
+    };
   }
 
-  if (!vector) {
+  // If raw vector provided, use direct vector search
+  if (!args.vector) {
     throw new Error('Either text or vector must be provided');
   }
 
   const results = await memoryManager.client.searchVectors({
-    vector,
+    vector: args.vector,
     limit: args.limit || 10,
-    filter: args.session_id ? { session_id: args.session_id } : null
+    filter
   });
 
-  // Filter by similarity threshold
+  const items = results.results || results.vectors || results;
   const filtered = args.min_similarity
-    ? results.filter(r => r.score >= args.min_similarity)
-    : results;
+    ? items.filter(r => (r.similarity || r.score) >= args.min_similarity)
+    : items;
 
   return {
     results: filtered.map(r => ({
-      content: r.payload?.content || r.metadata?.content,
-      similarity: r.score,
-      metadata: r.payload || r.metadata
+      content: r.document || r.payload?.content || r.metadata?.content,
+      similarity: r.similarity || r.score,
+      metadata: r.metadata || r.payload
     })),
     count: filtered.length,
-    search_vector_dims: vector.length
+    search_vector_dims: args.vector.length
   };
 }
 
@@ -424,5 +486,27 @@ async function handleClearSession(args, memoryManager) {
   return {
     success: true,
     message: `All memories cleared for session: ${args.session_id}`
+  };
+}
+
+/**
+ * Synthesize context handler — wraps POST /memory/v2/context (Issue #2631)
+ */
+async function handleSynthesizeContext(args, memoryManager) {
+  const result = await memoryManager.client.synthesizeContext({
+    query: args.query,
+    agentId: args.agent_id,
+    synthesisStyle: args.synthesis_style || 'narrative',
+    maxTokens: args.max_tokens || 1000,
+    topK: args.top_k || 10,
+  });
+
+  return {
+    context: result.context,
+    synthesis_style: args.synthesis_style || 'narrative',
+    sources_count: result.sources?.length ?? 0,
+    confidence: result.confidence ?? null,
+    token_count: result.token_count ?? null,
+    agent_id: args.agent_id,
   };
 }

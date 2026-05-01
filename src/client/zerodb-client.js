@@ -393,6 +393,21 @@ export class ZeroDBClient {
   }
 
   /**
+   * Synthesize context from memory using the context synthesis endpoint (Issue #2631)
+   * Wraps POST /api/v1/public/memory/v2/context
+   */
+  async synthesizeContext({ query, agentId, synthesisStyle = 'narrative', maxTokens = 1000, topK = 10 }) {
+    const path = `/api/v1/public/memory/v2/context`;
+    return await this.request('POST', path, {
+      query,
+      agent_id: agentId,
+      synthesis_style: synthesisStyle,
+      max_tokens: maxTokens,
+      top_k: topK,
+    });
+  }
+
+  /**
    * Health check
    */
   async healthCheck() {
