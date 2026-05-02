@@ -2,13 +2,13 @@
 
 **Persistent Memory for AI Agents**
 
-Optimized MCP server providing 7 focused tools for agent memory management with advanced context window optimization, semantic search, and cross-session memory.
+Optimized MCP server providing 14 tools for agent memory management, context synthesis, auto-context middleware, and write-back actions to external services.
 
 ## Why This MCP?
 
 **Before:** Monolithic server with 77 tools consuming 10,400+ tokens
-**After:** Focused server with 7 tools consuming ~900 tokens
-**Result:** **92% reduction** in context footprint, faster agent decisions, better accuracy
+**After:** Focused server with 14 tools consuming ~1,400 tokens
+**Result:** **87% reduction** in context footprint, faster agent decisions, better accuracy
 
 ## Key Features
 
@@ -375,6 +375,214 @@ Retrieve and LLM-synthesize relevant memories into a coherent context string. Wr
 
 ---
 
+### 8. `zerodb_configure_auto_context`
+
+Enable auto-context middleware so that relevant memories are automatically prepended to every tool response for a given agent. (Issue #2678)
+
+**Input:**
+```json
+{
+  "agent_id": "user-456",
+  "enabled": true,
+  "max_results": 10,
+  "synthesis_style": "bullet",
+  "auto_trace": false
+}
+```
+
+**Output:**
+```json
+{
+  "success": true,
+  "agent_id": "user-456",
+  "config": {
+    "enabled": true,
+    "max_results": 10,
+    "synthesis_style": "bullet",
+    "auto_trace": false
+  },
+  "message": "Auto-context enabled for agent user-456"
+}
+```
+
+**Features:**
+- Once enabled, every subsequent tool call for the `agent_id` automatically prepends `_auto_context` to the response
+- `auto_trace: true` stores each tool response as a new episodic memory for future recall
+- Config persisted via `/remember` — survives MCP server restarts
+- Skip list: config tools themselves are never auto-contexted
+
+---
+
+### 9. `zerodb_get_auto_context_config`
+
+Retrieve the current auto-context configuration for an agent.
+
+**Input:**
+```json
+{
+  "agent_id": "user-456"
+}
+```
+
+**Output:**
+```json
+{
+  "agent_id": "user-456",
+  "config": {
+    "enabled": true,
+    "max_results": 10,
+    "synthesis_style": "bullet",
+    "auto_trace": false
+  }
+}
+```
+
+---
+
+## Write-Back Action Tools
+
+Five tools that write back to external services using OAuth tokens stored in ZeroDB sync connections. Connect accounts at `/api/v1/public/memory/v2/connections`.
+
+> **Agent workflow:** `zerodb_recall` → `zerodb_synthesize_context` → take action (send Slack, reply email, create event, etc.)
+
+### 10. `zerodb_slack_send`
+
+Send a Slack message using the user's stored OAuth token. (Issue #2645)
+
+**Input:**
+```json
+{
+  "agent_id": "user-456",
+  "channel": "C012AB3CD",
+  "message": "Sprint planning scheduled for Monday 10am",
+  "thread_ts": "1609459200.000100"
+}
+```
+
+**Output:**
+```json
+{
+  "ts": "1609459201.000200",
+  "channel": "C012AB3CD",
+  "message": "Message sent successfully"
+}
+```
+
+**Notes:** `thread_ts` is optional — omit to post a new message, include to reply in a thread.
+
+---
+
+### 11. `zerodb_gmail_reply`
+
+Reply to a Gmail thread using the user's stored Google OAuth token. (Issue #2646)
+
+**Input:**
+```json
+{
+  "agent_id": "user-456",
+  "thread_id": "17abc123def456",
+  "body": "Thanks for the update. I'll review the PR by EOD.",
+  "cc": ["manager@example.com"]
+}
+```
+
+**Output:**
+```json
+{
+  "id": "17abc123def999",
+  "thread_id": "17abc123def456",
+  "message": "Reply sent successfully"
+}
+```
+
+---
+
+### 12. `zerodb_calendar_create`
+
+Create a Google Calendar event using the user's stored Google OAuth token. (Issue #2647)
+
+**Input:**
+```json
+{
+  "agent_id": "user-456",
+  "title": "Sprint Planning",
+  "start": "2026-05-10T10:00:00Z",
+  "end": "2026-05-10T11:00:00Z",
+  "description": "Q2 sprint kickoff",
+  "attendees": ["alice@example.com", "bob@example.com"],
+  "calendar_id": "primary"
+}
+```
+
+**Output:**
+```json
+{
+  "id": "evt_abc123",
+  "html_link": "https://calendar.google.com/event?eid=abc123",
+  "title": "Sprint Planning",
+  "message": "Event created successfully"
+}
+```
+
+**Notes:** Uses the same Google OAuth token as Gmail. `calendar_id` defaults to `"primary"`.
+
+---
+
+### 13. `zerodb_github_create_issue`
+
+Create a GitHub issue using the user's stored GitHub OAuth token. (Issue #2648)
+
+**Input:**
+```json
+{
+  "agent_id": "user-456",
+  "repo": "acme/widget",
+  "title": "Fix null pointer in payment flow",
+  "body": "Steps to reproduce:\n1. Add item to cart\n2. Proceed to checkout\n3. Observe crash",
+  "labels": ["bug", "priority:high"]
+}
+```
+
+**Output:**
+```json
+{
+  "number": 142,
+  "html_url": "https://github.com/acme/widget/issues/142",
+  "title": "Fix null pointer in payment flow",
+  "message": "Issue created successfully"
+}
+```
+
+---
+
+### 14. `zerodb_notion_create_page`
+
+Create a Notion page using the user's stored Notion OAuth token. (Issue #2649)
+
+**Input:**
+```json
+{
+  "agent_id": "user-456",
+  "parent_id": "parent-page-uuid",
+  "title": "Meeting Notes — May 10",
+  "content": "Attendees: Alice, Bob\n\nDecisions:\n- Ship v2 on Friday\n- Rollback plan: revert to v1.9"
+}
+```
+
+**Output:**
+```json
+{
+  "id": "page-uuid-xyz",
+  "url": "https://notion.so/page-uuid-xyz",
+  "title": "Meeting Notes — May 10",
+  "message": "Page created successfully"
+}
+```
+
+**Notes:** Content is converted to Notion paragraph blocks (one per non-empty line). Lines longer than 2000 characters are truncated.
+
+---
+
 ## Advanced Configuration
 
 ### Context Window Management
@@ -523,6 +731,66 @@ const related = await zerodb_semantic_search({
   limit: 5,
   min_similarity: 0.7
 });
+```
+
+### End-to-End Agent Workflow: Recall → Synthesize → Act
+
+```javascript
+// 1. Recall relevant memories
+const memories = await zerodb_recall({
+  query: "pending items from last standup",
+  agent_id: "agent-456",
+  top_k: 10,
+  rerank: true
+});
+
+// 2. Synthesize into a coherent summary
+const context = await zerodb_synthesize_context({
+  query: "pending items from last standup",
+  agent_id: "agent-456",
+  synthesis_style: "bullet",
+  top_k: 5
+});
+// context.context = "- PR #42 needs review\n- Deploy blocked on staging tests\n- Alice OOO Monday"
+
+// 3. Take action — send Slack update
+await zerodb_slack_send({
+  agent_id: "agent-456",
+  channel: "C012AB3CD",
+  message: `Standup summary:\n${context.context}`
+});
+
+// 4. Log the action as a memory for future recall
+await zerodb_store_memory({
+  content: `Sent standup summary to #engineering: ${context.context}`,
+  role: "assistant",
+  session_id: "agent-456",
+  tags: ["action", "slack", "standup"]
+});
+```
+
+### Auto-Context Middleware
+
+Enable auto-context so every tool call gets relevant memories prepended automatically:
+
+```javascript
+// Enable once per agent
+await zerodb_configure_auto_context({
+  agent_id: "agent-456",
+  enabled: true,
+  max_results: 10,
+  synthesis_style: "bullet",
+  auto_trace: true  // also store tool responses as memories
+});
+
+// Now every subsequent tool call automatically includes _auto_context
+const result = await zerodb_slack_send({
+  agent_id: "agent-456",
+  channel: "C123",
+  message: "Update sent"
+});
+// result._auto_context = "• User prefers concise updates\n• Last message sent 2h ago"
+// result.ts = "..."
 ```
 
 ---
