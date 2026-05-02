@@ -6,8 +6,8 @@
  * Persistent memory for AI agents with advanced context management
  *
  * Features:
- * - 6 focused tools (down from 77!)
- * - ~800 token footprint (down from 10,400!)
+ * - 14 tools: 9 memory + 5 write-back
+ * - ~1,200 token footprint
  * - Smart context window management
  * - Memory pruning (relevance, recency, hybrid)
  * - Memory importance scoring & decay
@@ -27,6 +27,8 @@ import dotenv from 'dotenv';
 import { ZeroDBClient } from './src/client/zerodb-client.js';
 import { MemoryManager } from './src/utils/memory-manager.js';
 import { MEMORY_TOOLS, executeMemoryTool } from './src/tools/memory-tools.js';
+import { WRITEBACK_TOOLS, executeWritebackTool } from './src/tools/writeback-tools.js';
+import { autoContextHook, autoTraceHook } from './src/utils/auto-context.js';
 
 // Load environment variables
 dotenv.config();
@@ -109,7 +111,7 @@ async function initialize() {
   console.error(`   • Auto-embed: ${config.autoEmbed ? 'enabled' : 'disabled'}`);
   console.error(`   • Summarization: ${config.summarize.enabled ? 'enabled' : 'disabled'}`);
   console.error(`   • Memory decay: ${config.decay.enabled ? 'enabled' : 'disabled'}`);
-  console.error('\n✅ 6 memory tools loaded');
+  console.error('\n✅ 14 tools loaded (9 memory + 5 write-back)');
   console.error('✅ Ready for agent connections!\n');
 }
 
@@ -120,7 +122,7 @@ function createServer() {
   const server = new Server(
     {
       name: 'zerodb-memory-mcp',
-      version: '1.0.0',
+      version: '1.1.0',
     },
     {
       capabilities: {
@@ -129,10 +131,10 @@ function createServer() {
     }
   );
 
-  // List available tools
+  // List available tools — memory tools + write-back tools
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     return {
-      tools: MEMORY_TOOLS
+      tools: [...MEMORY_TOOLS, ...WRITEBACK_TOOLS]
     };
   });
 
@@ -141,13 +143,38 @@ function createServer() {
     const { name, arguments: args } = request.params;
 
     try {
-      const result = await executeMemoryTool(name, args || {}, memoryManager);
+      // Auto-context middleware: inject memories before tool call if enabled
+      // agent_id is resolved from args (write-back tools pass it explicitly; memory
+      // tools use session_id or agent_id arg). Skip for config tools to avoid loops.
+      const agentId = args?.agent_id || args?.session_id || null;
+      const skipAutoContext = ['zerodb_configure_auto_context', 'zerodb_get_auto_context_config'].includes(name);
+      let autoContext = null;
+      if (agentId && !skipAutoContext) {
+        const query = args?.query || args?.content || args?.message || args?.title || name;
+        autoContext = await autoContextHook(agentId, query, client);
+      }
+
+      // Execute the tool
+      let result = await executeWritebackTool(name, args || {}, client);
+      if (result === null) {
+        result = await executeMemoryTool(name, args || {}, memoryManager);
+      }
+
+      // Auto-trace: store response as memory if enabled
+      if (agentId && !skipAutoContext) {
+        await autoTraceHook(agentId, name, result, client);
+      }
+
+      // Prepend auto-context if present
+      const output = autoContext
+        ? { _auto_context: autoContext, ...result }
+        : result;
 
       return {
         content: [
           {
             type: 'text',
-            text: JSON.stringify(result, null, 2)
+            text: JSON.stringify(output, null, 2)
           }
         ]
       };

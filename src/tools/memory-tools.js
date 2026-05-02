@@ -1,15 +1,19 @@
 /**
  * MCP Tools for Agent Memory Management
  *
- * 7 focused tools for persistent agent memory:
- * 1. zerodb_store_memory - Store conversation context
- * 2. zerodb_search_memory - Semantic memory retrieval
- * 3. zerodb_get_context - Get full session context window
- * 4. zerodb_embed_text - Generate embeddings
- * 5. zerodb_semantic_search - Search by meaning
- * 6. zerodb_clear_session - Reset conversation memory
- * 7. zerodb_synthesize_context - LLM-synthesized context from memory (Issue #2631)
+ * 9 focused tools for persistent agent memory:
+ * 1. zerodb_store_memory          - Store conversation context
+ * 2. zerodb_search_memory         - Semantic memory retrieval
+ * 3. zerodb_get_context           - Get full session context window
+ * 4. zerodb_embed_text            - Generate embeddings
+ * 5. zerodb_semantic_search       - Search by meaning
+ * 6. zerodb_clear_session         - Reset conversation memory
+ * 7. zerodb_synthesize_context    - LLM-synthesized context from memory (#2631)
+ * 8. zerodb_configure_auto_context - Configure ambient memory injection (#2669)
+ * 9. zerodb_get_auto_context_config - Read current auto-context config (#2669)
  */
+
+import { getAutoContextConfig, setAutoContextConfig } from '../utils/auto-context.js';
 
 export const MEMORY_TOOLS = [
   {
@@ -251,6 +255,59 @@ export const MEMORY_TOOLS = [
       },
       required: ['query', 'agent_id']
     }
+  },
+
+  // #2669
+  {
+    name: 'zerodb_configure_auto_context',
+    description: 'Configure ambient memory injection. When enabled, ZeroDB automatically retrieves relevant memories before each tool call and prepends them as context — agents get memory without calling recall() explicitly.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        agent_id: {
+          type: 'string',
+          description: 'Agent identifier to configure (scopes config to this agent)'
+        },
+        enabled: {
+          type: 'boolean',
+          description: 'Enable or disable auto-context injection (default: false)'
+        },
+        max_results: {
+          type: 'integer',
+          description: 'Number of memories to inject per tool call (1-20, default: 10)',
+          minimum: 1,
+          maximum: 20,
+          default: 10
+        },
+        synthesis_style: {
+          type: 'string',
+          enum: ['narrative', 'bullet', 'structured'],
+          description: 'Format of injected context: narrative prose, bullet points, or structured summary',
+          default: 'bullet'
+        },
+        auto_trace: {
+          type: 'boolean',
+          description: 'Automatically store tool responses as memories for future recall (default: false)',
+          default: false
+        }
+      },
+      required: ['agent_id', 'enabled']
+    }
+  },
+
+  {
+    name: 'zerodb_get_auto_context_config',
+    description: 'Get the current auto-context configuration for an agent.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        agent_id: {
+          type: 'string',
+          description: 'Agent identifier to retrieve configuration for'
+        }
+      },
+      required: ['agent_id']
+    }
   }
 ];
 
@@ -279,6 +336,12 @@ export async function executeMemoryTool(toolName, args, memoryManager) {
 
     case 'zerodb_synthesize_context':
       return await handleSynthesizeContext(args, memoryManager);
+
+    case 'zerodb_configure_auto_context':
+      return await handleConfigureAutoContext(args, memoryManager);
+
+    case 'zerodb_get_auto_context_config':
+      return await handleGetAutoContextConfig(args, memoryManager);
 
     default:
       throw new Error(`Unknown tool: ${toolName}`);
@@ -486,6 +549,42 @@ async function handleClearSession(args, memoryManager) {
   return {
     success: true,
     message: `All memories cleared for session: ${args.session_id}`
+  };
+}
+
+/**
+ * Configure auto-context handler — Issue #2669
+ */
+async function handleConfigureAutoContext(args, memoryManager) {
+  const config = await setAutoContextConfig(
+    args.agent_id,
+    {
+      enabled: args.enabled,
+      max_results: args.max_results,
+      synthesis_style: args.synthesis_style,
+      auto_trace: args.auto_trace,
+    },
+    memoryManager.client
+  );
+
+  return {
+    success: true,
+    agent_id: args.agent_id,
+    config,
+    message: config.enabled
+      ? `Auto-context enabled for agent ${args.agent_id}: injecting up to ${config.max_results} memories per tool call`
+      : `Auto-context disabled for agent ${args.agent_id}`,
+  };
+}
+
+/**
+ * Get auto-context config handler — Issue #2669
+ */
+async function handleGetAutoContextConfig(args, memoryManager) {
+  const config = await getAutoContextConfig(args.agent_id, memoryManager.client);
+  return {
+    agent_id: args.agent_id,
+    config,
   };
 }
 
