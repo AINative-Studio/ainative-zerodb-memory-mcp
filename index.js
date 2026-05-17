@@ -28,6 +28,7 @@ import { ZeroDBClient } from './src/client/zerodb-client.js';
 import { MemoryManager } from './src/utils/memory-manager.js';
 import { MEMORY_TOOLS, executeMemoryTool } from './src/tools/memory-tools.js';
 import { WRITEBACK_TOOLS, executeWritebackTool } from './src/tools/writeback-tools.js';
+import { PLAN_TOOLS, executePlanTool } from './src/tools/plan-tools.js';
 import { autoContextHook, autoTraceHook } from './src/utils/auto-context.js';
 
 // Load environment variables
@@ -111,7 +112,7 @@ async function initialize() {
   console.error(`   • Auto-embed: ${config.autoEmbed ? 'enabled' : 'disabled'}`);
   console.error(`   • Summarization: ${config.summarize.enabled ? 'enabled' : 'disabled'}`);
   console.error(`   • Memory decay: ${config.decay.enabled ? 'enabled' : 'disabled'}`);
-  console.error('\n✅ 14 tools loaded (9 memory + 5 write-back)');
+  console.error('\n✅ 18 tools loaded (9 memory + 5 write-back + 4 plan-artifacts)');
   console.error('✅ Ready for agent connections!\n');
 }
 
@@ -134,7 +135,7 @@ function createServer() {
   // List available tools — memory tools + write-back tools
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     return {
-      tools: [...MEMORY_TOOLS, ...WRITEBACK_TOOLS]
+      tools: [...MEMORY_TOOLS, ...WRITEBACK_TOOLS, ...PLAN_TOOLS]
     };
   });
 
@@ -156,9 +157,8 @@ function createServer() {
 
       // Execute the tool
       let result = await executeWritebackTool(name, args || {}, client);
-      if (result === null) {
-        result = await executeMemoryTool(name, args || {}, memoryManager);
-      }
+      if (result === null) result = await executePlanTool(name, args || {}, client);
+      if (result === null) result = await executeMemoryTool(name, args || {}, memoryManager);
 
       // Auto-trace: store response as memory if enabled
       if (agentId && !skipAutoContext) {
