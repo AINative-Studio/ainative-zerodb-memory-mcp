@@ -94,7 +94,9 @@ export class ZeroDBClient {
 
       console.error('✅ Authenticated successfully with username/password');
     } catch (error) {
-      throw new Error(`Authentication failed: ${error.response?.data?.detail || error.message}`);
+      const authDetail = error.response?.data?.detail;
+      const authDetailStr = typeof authDetail === 'object' ? JSON.stringify(authDetail) : (authDetail || error.message);
+      throw new Error(`Authentication failed: ${authDetailStr}`);
     }
   }
 
@@ -130,7 +132,8 @@ export class ZeroDBClient {
     } catch (error) {
       this.authValid = false;
       const status = error.response?.status;
-      const detail = error.response?.data?.detail || error.message;
+      const rawDetail = error.response?.data?.detail;
+      const detail = typeof rawDetail === 'object' ? JSON.stringify(rawDetail) : (rawDetail || error.message);
       console.error('');
       console.error('===========================================');
       console.error('  AUTH FAILED');
@@ -213,7 +216,9 @@ export class ZeroDBClient {
         const retryResponse = await axios(config);
         return retryResponse.data;
       }
-      throw new Error(`API request failed: ${error.response?.data?.detail || error.message}`);
+      const detail = error.response?.data?.detail;
+      const detailStr = typeof detail === 'object' ? JSON.stringify(detail) : (detail || error.message);
+      throw new Error(`API request failed: ${detailStr}`);
     }
   }
 
