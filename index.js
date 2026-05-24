@@ -23,6 +23,9 @@ import {
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import dotenv from 'dotenv';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const { version: PKG_VERSION } = require('./package.json');
 
 import { ZeroDBClient } from './src/client/zerodb-client.js';
 import { MemoryManager } from './src/utils/memory-manager.js';
@@ -88,7 +91,7 @@ async function initialize() {
   console.error('  ╚══════╝╚══════╝╚═╝  ╚═╝ ╚═════╝');
   console.error('\n  ZeroDB - The AINative Database');
   console.error('\n===========================================');
-  console.error('  Agent Memory MCP Server v1.0.0');
+  console.error(`  Agent Memory MCP Server v${PKG_VERSION}`);
   console.error('  Persistent Memory for AI Agents');
   console.error('===========================================\n');
 
@@ -123,7 +126,7 @@ function createServer() {
   const server = new Server(
     {
       name: 'zerodb-memory-mcp',
-      version: '1.1.0',
+      version: PKG_VERSION,
     },
     {
       capabilities: {
@@ -216,11 +219,22 @@ async function main() {
     console.error('📡 MCP Server connected and ready\n');
   } catch (error) {
     console.error('\n❌ Failed to start server:', error.message);
-    console.error('\nPlease check:');
-    console.error('  • ZERODB_USERNAME and ZERODB_PASSWORD are set');
-    console.error('  • ZERODB_PROJECT_ID is set');
-    console.error('  • ZeroLocal is running (if using localhost)');
-    console.error('  • Network connection (if using cloud)\n');
+
+    if (error.message.includes('ZERODB_API_KEY') || error.message.includes('required')) {
+      console.error('\n  No credentials found. Get a free API key in seconds:\n');
+      console.error('    npx zerodb-cli init\n');
+      console.error('  Then add your key to your MCP config:');
+      console.error('    ZERODB_API_KEY=ak_your_key_here\n');
+      console.error('  Or set it in a .env file in your project root.\n');
+      console.error('  Docs: https://ainative.studio/.well-known/myterms.json\n');
+    } else {
+      console.error('\nPlease check:');
+      console.error('  • ZERODB_API_KEY is set (recommended)');
+      console.error('  • Or ZERODB_USERNAME and ZERODB_PASSWORD are set');
+      console.error('  • ZeroLocal is running (if using localhost)');
+      console.error('  • Network connection (if using cloud)\n');
+      console.error('  Get credentials: npx zerodb-cli init\n');
+    }
     process.exit(1);
   }
 }
