@@ -1,6 +1,6 @@
 {
   "name": "ainative-zerodb-memory-mcp",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "AINative ZeroDB Memory MCP Server - 18 tools for agent memory: 9 memory + 5 write-back (Slack, Gmail, Calendar, GitHub, Notion) + 4 plan artifacts (persistent plans/PRDs across sessions with diff history). Auto-context middleware. Production-ready for Claude, Windsurf, and AI assistants.",
   "main": "index.js",
   "type": "module",
@@ -103,8 +103,8 @@
     "README.md",
     "LICENSE",
     ".env.example",
-    "COMPARISON.md",
-    "IMPLEMENTATION_SUMMARY.md"
+    ".claude/",
+    ".cody/"
   ],
   "publishConfig": {
     "access": "public",
