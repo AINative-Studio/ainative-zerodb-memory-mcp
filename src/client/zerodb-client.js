@@ -247,11 +247,14 @@ export class ZeroDBClient {
    */
   async searchMemory({ query, limit = 10, sessionId = null, scope = 'session' }) {
     const path = `/api/v1/public/memory/v2/recall`;
+    const namespace = sessionId ? `session:${sessionId}` : 'global';
 
     const results = await this.request('POST', path, {
       query,
       limit,
-      session_id: sessionId
+      session_id: sessionId,
+      namespace,
+      allow_cross_namespace: !sessionId
     });
 
     return results.results || results.memories || [];
@@ -267,7 +270,8 @@ export class ZeroDBClient {
     const allMemories = await this.request('POST', path, {
       query: sessionId,
       limit: 50,
-      session_id: sessionId
+      session_id: sessionId,
+      namespace: `session:${sessionId}`
     });
 
     // Extract results from v2 response
