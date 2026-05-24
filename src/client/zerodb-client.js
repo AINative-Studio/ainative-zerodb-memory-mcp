@@ -227,10 +227,12 @@ export class ZeroDBClient {
    */
   async storeMemory({ content, role = 'user', sessionId, metadata = {}, importance = null }) {
     const path = `/api/v1/public/memory/v2/remember`;
+    const namespace = sessionId ? `session:${sessionId}` : 'global';
 
     return await this.request('POST', path, {
       content,
       session_id: sessionId,
+      namespace,
       metadata: {
         ...metadata,
         role,
