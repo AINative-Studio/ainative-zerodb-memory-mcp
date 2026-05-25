@@ -304,18 +304,15 @@ export class ZeroDBClient {
    * Generate embeddings
    */
   async embedText(text, model = 'BAAI/bge-small-en-v1.5') {
+    if (!this.projectId) {
+      throw new Error('ZERODB_PROJECT_ID is required for embed_text. Run: npx zerodb-cli init');
+    }
     const path = `/api/v1/projects/${this.projectId}/embeddings/generate`;
-
-    const result = await this.request('POST', path, {
-      texts: [text],
-      model,
-      normalize: true
-    });
-
+    const result = await this.request('POST', path, { texts: [text], model, normalize: true });
     return {
       embedding: result.embeddings?.[0] || [],
-      model: result.model,
-      dimensions: result.dimensions
+      model: result.model || model,
+      dimensions: result.dimensions || (result.embeddings?.[0] || []).length
     };
   }
 

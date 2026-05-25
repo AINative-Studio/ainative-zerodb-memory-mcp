@@ -40,9 +40,10 @@ dotenv.config();
 // If credentials still missing, scan up the directory tree for .mcp.json and load from it.
 // This lets `npx ainative-zerodb-memory-mcp` work out of the box after `zerodb init`.
 if (!process.env.ZERODB_API_KEY && !process.env.ZERODB_USERNAME) {
-  const { existsSync, readFileSync } = await import('fs');
+  const { existsSync, readFileSync, writeFileSync, appendFileSync } = await import('fs');
   const { dirname, join } = await import('path');
   let dir = process.cwd();
+  let foundInMcp = false;
   for (let i = 0; i < 6; i++) {
     const candidatePath = join(dir, '.mcp.json');
     if (existsSync(candidatePath)) {
@@ -60,6 +61,7 @@ if (!process.env.ZERODB_API_KEY && !process.env.ZERODB_USERNAME) {
           if (env.ZERODB_PROJECT_ID) process.env.ZERODB_PROJECT_ID = env.ZERODB_PROJECT_ID;
           if (env.ZERODB_API_URL) process.env.ZERODB_API_URL = env.ZERODB_API_URL;
           console.error(`☁️  Loaded credentials from ${candidatePath}`);
+          foundInMcp = true;
           break;
         }
       } catch (_) {}
@@ -67,6 +69,72 @@ if (!process.env.ZERODB_API_KEY && !process.env.ZERODB_USERNAME) {
     const parent = dirname(dir);
     if (parent === dir) break;
     dir = parent;
+  }
+
+  // Still no credentials — auto-provision a free instant database (no zerodb-cli required)
+  if (!foundInMcp && !process.env.ZERODB_API_KEY && !process.env.ZERODB_USERNAME) {
+    console.error('\n  No credentials found — provisioning a free ZeroDB instance...');
+    try {
+      const https = await import('https');
+      const creds = await new Promise((resolve, reject) => {
+        const body = JSON.stringify({ agree_terms: true });
+        const req = https.default.request({
+          hostname: 'api.ainative.studio',
+          port: 443,
+          path: '/api/v1/public/instant-db',
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+        }, (res) => {
+          let data = '';
+          res.on('data', chunk => data += chunk);
+          res.on('end', () => {
+            if (res.statusCode === 200) resolve(JSON.parse(data));
+            else reject(new Error(`HTTP ${res.statusCode}`));
+          });
+        });
+        req.on('error', reject);
+        req.write(body);
+        req.end();
+      });
+
+      process.env.ZERODB_API_KEY = creds.api_key;
+      process.env.ZERODB_PROJECT_ID = creds.project_id;
+      process.env.ZERODB_API_URL = 'https://api.ainative.studio';
+
+      // Write .mcp.json so next run loads from file
+      const mcpPath = join(process.cwd(), '.mcp.json');
+      const mcpConfig = {
+        mcpServers: {
+          'zerodb-memory': {
+            command: 'npx',
+            args: ['-y', 'ainative-zerodb-memory-mcp'],
+            env: {
+              ZERODB_API_KEY: creds.api_key,
+              ZERODB_PROJECT_ID: creds.project_id,
+              ZERODB_API_URL: 'https://api.ainative.studio'
+            }
+          }
+        }
+      };
+      let existing = {};
+      if (existsSync(mcpPath)) { try { existing = JSON.parse(readFileSync(mcpPath, 'utf-8')); } catch (_) {} }
+      writeFileSync(mcpPath, JSON.stringify({ ...existing, mcpServers: { ...(existing.mcpServers || {}), ...mcpConfig.mcpServers } }, null, 2) + '\n');
+
+      // Append to .env
+      const envPath = join(process.cwd(), '.env');
+      const envBlock = `\n# ZeroDB (auto-provisioned by ainative-zerodb-memory-mcp)\nZERODB_API_KEY=${creds.api_key}\nZERODB_PROJECT_ID=${creds.project_id}\nZERODB_API_URL=https://api.ainative.studio\n`;
+      if (existsSync(envPath)) { if (!readFileSync(envPath, 'utf-8').includes('ZERODB_API_KEY')) appendFileSync(envPath, envBlock); }
+      else writeFileSync(envPath, envBlock.trimStart());
+
+      console.error(`  ✅ Auto-provisioned! Project: ${creds.project_id}`);
+      console.error(`  API Key: ${creds.api_key.slice(0, 16)}...`);
+      console.error(`  Expires: ${creds.expires_at}`);
+      console.error(`  Claim at: ${creds.claim_url}`);
+      console.error(`  Saved to .mcp.json and .env\n`);
+    } catch (provisionErr) {
+      console.error(`  ⚠️  Auto-provision failed: ${provisionErr.message}`);
+      console.error('  Run: npx zerodb-cli init\n');
+    }
   }
 }
 
