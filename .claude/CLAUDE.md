@@ -60,6 +60,22 @@ zerodb_store_memory(
 
 Always pass `session_id` to avoid polluting the global namespace.
 
+## MCP Config
+
+**Recommended — HTTP transport (always current, no npx cache issues):**
+
+```json
+{
+  "mcpServers": {
+    "zerodb-memory": {
+      "type": "http",
+      "url": "https://api.ainative.studio/v1/mcp/zerodb-memory-mcp/messages",
+      "headers": { "x-api-key": "ak_your_key" }
+    }
+  }
+}
+```
+
 ## Auth
 
 Set one of:

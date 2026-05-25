@@ -41,22 +41,7 @@ zerodb_get_context(session_id)
 
 ## MCP Config (mcp.json)
 
-```json
-{
-  "mcpServers": {
-    "zerodb-memory": {
-      "command": "npx",
-      "args": ["-y", "ainative-zerodb-memory-mcp"],
-      "env": {
-        "ZERODB_API_KEY": "ak_your_key",
-        "ZERODB_API_URL": "https://api.ainative.studio"
-      }
-    }
-  }
-}
-```
-
-Or HTTP mode (if running as a hosted service):
+**Recommended — HTTP transport (always current, no cache issues):**
 
 ```json
 {
@@ -65,6 +50,23 @@ Or HTTP mode (if running as a hosted service):
       "type": "http",
       "url": "https://api.ainative.studio/v1/mcp/zerodb-memory-mcp/messages",
       "headers": { "x-api-key": "ak_your_key" }
+    }
+  }
+}
+```
+
+**Alternative — stdio/npx:**
+
+```json
+{
+  "mcpServers": {
+    "zerodb-memory": {
+      "command": "npx",
+      "args": ["-y", "ainative-zerodb-memory-mcp@latest"],
+      "env": {
+        "ZERODB_API_KEY": "ak_your_key",
+        "ZERODB_API_URL": "https://api.ainative.studio"
+      }
     }
   }
 }
