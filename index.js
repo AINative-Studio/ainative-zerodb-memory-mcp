@@ -34,8 +34,41 @@ import { WRITEBACK_TOOLS, executeWritebackTool } from './src/tools/writeback-too
 import { PLAN_TOOLS, executePlanTool } from './src/tools/plan-tools.js';
 import { autoContextHook, autoTraceHook } from './src/utils/auto-context.js';
 
-// Load environment variables
+// Load environment variables from .env
 dotenv.config();
+
+// If credentials still missing, scan up the directory tree for .mcp.json and load from it.
+// This lets `npx ainative-zerodb-memory-mcp` work out of the box after `zerodb init`.
+if (!process.env.ZERODB_API_KEY && !process.env.ZERODB_USERNAME) {
+  const { existsSync, readFileSync } = await import('fs');
+  const { dirname, join } = await import('path');
+  let dir = process.cwd();
+  for (let i = 0; i < 6; i++) {
+    const candidatePath = join(dir, '.mcp.json');
+    if (existsSync(candidatePath)) {
+      try {
+        const mcp = JSON.parse(readFileSync(candidatePath, 'utf-8'));
+        const servers = mcp.mcpServers || {};
+        const zerodbServer = servers['zerodb-memory']
+          || servers['ainative-zerodb-memory']
+          || Object.values(servers).find(s => (s.args || []).join(' ').includes('zerodb'));
+        const env = zerodbServer?.env;
+        if (env) {
+          if (env.ZERODB_API_KEY) process.env.ZERODB_API_KEY = env.ZERODB_API_KEY;
+          if (env.ZERODB_USERNAME) process.env.ZERODB_USERNAME = env.ZERODB_USERNAME;
+          if (env.ZERODB_PASSWORD) process.env.ZERODB_PASSWORD = env.ZERODB_PASSWORD;
+          if (env.ZERODB_PROJECT_ID) process.env.ZERODB_PROJECT_ID = env.ZERODB_PROJECT_ID;
+          if (env.ZERODB_API_URL) process.env.ZERODB_API_URL = env.ZERODB_API_URL;
+          console.error(`☁️  Loaded credentials from ${candidatePath}`);
+          break;
+        }
+      } catch (_) {}
+    }
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+}
 
 // Configuration
 const config = {
