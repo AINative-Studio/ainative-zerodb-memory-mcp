@@ -134,6 +134,7 @@ export class ZeroDBClient {
       const status = error.response?.status;
       const rawDetail = error.response?.data?.detail;
       const detail = typeof rawDetail === 'object' ? JSON.stringify(rawDetail) : (rawDetail || error.message);
+      const isTimeout = error.code === 'ECONNABORTED' || /timeout/i.test(error.message);
       console.error('');
       console.error('===========================================');
       console.error('  AUTH FAILED');
@@ -141,12 +142,19 @@ export class ZeroDBClient {
       console.error(`  Status: ${status || 'N/A'}`);
       console.error(`  Detail: ${detail}`);
       console.error('');
-      console.error('  Your ZERODB credentials are invalid.');
-      console.error('  Check ZERODB_API_KEY or ZERODB_USERNAME/ZERODB_PASSWORD env vars.');
-      console.error('');
-      console.error('  Common cause: shell env vars (~/.zshrc, ~/.bashrc)');
-      console.error('  may override your MCP config. API key auth');
-      console.error('  (ZERODB_API_KEY) is recommended over username/password.');
+      if (isTimeout) {
+        console.error('  Server did not respond within 10 seconds.');
+        console.error('  This may be a temporary DB pool exhaustion issue.');
+        console.error('  Wait 30 seconds and retry. If it persists, check');
+        console.error('  status at https://ainative.studio/status');
+      } else {
+        console.error('  Your ZERODB credentials are invalid.');
+        console.error('  Check ZERODB_API_KEY or ZERODB_USERNAME/ZERODB_PASSWORD env vars.');
+        console.error('');
+        console.error('  Common cause: shell env vars (~/.zshrc, ~/.bashrc)');
+        console.error('  may override your MCP config. API key auth');
+        console.error('  (ZERODB_API_KEY) is recommended over username/password.');
+      }
       console.error('===========================================');
       console.error('');
     }
