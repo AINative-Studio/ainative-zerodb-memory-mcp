@@ -483,7 +483,7 @@ async function handleSemanticSearch(args, memoryManager) {
       results: filtered.map(r => ({
         content: r.document || r.payload?.content || r.metadata?.content,
         similarity: r.similarity || r.score,
-        metadata: r.metadata || r.payload
+        metadata: r.vector_metadata || r.metadata || r.payload
       })),
       count: filtered.length
     };
@@ -509,7 +509,7 @@ async function handleSemanticSearch(args, memoryManager) {
     results: filtered.map(r => ({
       content: r.document || r.payload?.content || r.metadata?.content,
       similarity: r.similarity || r.score,
-      metadata: r.metadata || r.payload
+      metadata: r.vector_metadata || r.metadata || r.payload
     })),
     count: filtered.length,
     search_vector_dims: args.vector.length
