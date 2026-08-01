@@ -1,0 +1,20 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.AINative-Studio/ainative-zerodb-memory-mcp",
+  "description": "ZeroDB agent-memory MCP — 18 tools: memory + write-back to Slack, Gmail, Calendar, GitHub.",
+  "repository": {
+    "url": "https://github.com/AINative-Studio/ainative-zerodb-memory-mcp",
+    "source": "github"
+  },
+  "version": "1.2.7",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "ainative-zerodb-memory-mcp",
+      "version": "1.2.7",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
