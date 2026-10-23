@@ -251,18 +251,37 @@ export class ZeroDBClient {
   }
 
   /**
-   * Search memory semantically
+   * Search memory semantically.
+   *
+   * Refs #9063: the backend only recognizes 'global' and 'session:<id>'
+   * namespaces (app/services/memory/zeromemory.py::_validate_namespace) —
+   * there is no agent-level namespace. `scope` is therefore only ever
+   * informational for callers; the real behavior is entirely driven by
+   * whether sessionId is set, same as before. What changed: a scope of
+   * 'session' with no sessionId is now a caller error instead of silently
+   * falling through to a global search the caller didn't ask for.
    */
   async searchMemory({ query, limit = 10, sessionId = null, scope = 'session' }) {
+    if (scope === 'session' && !sessionId) {
+      throw new Error(
+        "searchMemory: scope='session' requires sessionId. Pass a sessionId, " +
+        "or use scope='global' (or 'agent', treated as 'global' — the backend " +
+        "has no per-agent namespace) to search across all sessions."
+      );
+    }
+    // 'agent'/'global' always search broadly, regardless of any sessionId a
+    // caller passed alongside them — only 'session' narrows the query.
+    const effectiveSessionId = scope === 'session' ? sessionId : null;
+
     const path = `/api/v1/public/memory/v2/recall`;
-    const namespace = sessionId ? `session:${sessionId}` : 'global';
+    const namespace = effectiveSessionId ? `session:${effectiveSessionId}` : 'global';
 
     const results = await this.request('POST', path, {
       query,
       limit,
-      session_id: sessionId,
+      session_id: effectiveSessionId,
       namespace,
-      allow_cross_namespace: !sessionId
+      allow_cross_namespace: !effectiveSessionId
     });
 
     return results.results || results.memories || [];
