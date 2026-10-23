@@ -512,6 +512,47 @@ describe('MemoryManager', () => {
 
       assert.ok(results.length > 0, 'Should find cross-session results');
     });
+
+    it('Refs #9063: should search broadly when scope is agent with no userId (the common case — the MCP tool never collects user_id unless explicitly passed)', async () => {
+      const results = await manager.searchMemory({
+        query: 'preferences',
+        limit: 10,
+        scope: 'agent'
+      });
+
+      assert.ok(results.length > 0, 'Should not silently return nothing just because userId was omitted');
+    });
+
+    it('Refs #9063: should search broadly when scope is global with no sessionId or userId', async () => {
+      const results = await manager.searchMemory({
+        query: 'preferences',
+        limit: 10,
+        scope: 'global'
+      });
+
+      assert.ok(results.length > 0, 'Should find results across all sessions');
+    });
+
+    it('Refs #9063: should ignore a stray sessionId when scope is agent (agent/global must not silently narrow to one session)', async () => {
+      // A second session's memory that a session-scoped search would miss.
+      await manager.storeMemory({
+        content: 'User prefers light mode in the other session',
+        role: 'user',
+        sessionId: 'other-session',
+        tags: ['preference'],
+        metadata: { userId: 'user-123' }
+      });
+
+      const results = await manager.searchMemory({
+        query: 'preferences',
+        limit: 10,
+        sessionId: 'search-session', // present but must be ignored for scope=agent
+        scope: 'agent'
+      });
+
+      const sessionIds = new Set(results.map(r => r.session_id));
+      assert.ok(sessionIds.has('other-session'), 'scope=agent must search beyond the passed sessionId');
+    });
   });
 
   describe('Clear Session', () => {

@@ -322,26 +322,29 @@ export class MemoryManager {
   }
 
   /**
-   * Search memory with cross-session support
+   * Search memory with cross-session support.
+   *
+   * Refs #9063: 'agent' and 'global' both mean "search broadly" — the
+   * backend has no per-agent namespace (only 'global' and 'session:<id>',
+   * see zeromemory.py::_validate_namespace), so both drop sessionId
+   * entirely rather than passing it through unchanged. Only 'session'
+   * scopes the query, and requires sessionId (enforced in zerodb-client.js).
    */
   async searchMemory({ query, limit = 10, sessionId = null, userId = null, scope = 'agent' }) {
-    // If userId provided and scope is 'agent', search across all sessions
-    if (scope === 'agent' && userId) {
+    if (scope === 'agent' || scope === 'global') {
       const results = await this.client.searchMemory({
         query,
-        limit: limit * 2, // Get more to filter
-        scope: 'agent'
+        limit: userId ? limit * 2 : limit, // over-fetch only when post-filtering by userId
+        scope
       });
 
-      // Filter by userId if specified
-      const filtered = userId
-        ? results.filter(r => r.metadata?.userId === userId)
-        : results;
+      if (!userId) return results;
 
-      return filtered.slice(0, limit);
+      // Post-filter by userId (client/backend have no userId-scoped query)
+      return results.filter(r => r.metadata?.userId === userId).slice(0, limit);
     }
 
-    // Standard session-scoped search
+    // scope === 'session': scoped to sessionId (client throws if sessionId is missing)
     return await this.client.searchMemory({
       query,
       limit,
