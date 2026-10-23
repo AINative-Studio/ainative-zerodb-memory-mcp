@@ -85,7 +85,7 @@ export const MEMORY_TOOLS = [
           type: 'string',
           enum: ['session', 'agent', 'global'],
           description: 'Search scope: session (current conversation), agent (all sessions for this agent), or global',
-          default: 'session'
+          default: 'agent'
         },
         min_importance: {
           type: 'number',
@@ -380,7 +380,7 @@ async function handleSearchMemory(args, memoryManager) {
     limit: args.limit || 10,
     sessionId: args.session_id,
     userId: args.user_id,
-    scope: args.scope || 'session'
+    scope: args.scope || 'agent'
   });
 
   // Filter by importance if specified
@@ -409,7 +409,7 @@ async function handleSearchMemory(args, memoryManager) {
       session_id: r.session_id
     })),
     count: filtered.length,
-    scope: args.scope || 'session'
+    scope: args.scope || 'agent'
   };
 }
 

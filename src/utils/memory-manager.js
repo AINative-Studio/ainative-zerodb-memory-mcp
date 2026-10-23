@@ -324,7 +324,7 @@ export class MemoryManager {
   /**
    * Search memory with cross-session support
    */
-  async searchMemory({ query, limit = 10, sessionId = null, userId = null, scope = 'session' }) {
+  async searchMemory({ query, limit = 10, sessionId = null, userId = null, scope = 'agent' }) {
     // If userId provided and scope is 'agent', search across all sessions
     if (scope === 'agent' && userId) {
       const results = await this.client.searchMemory({
