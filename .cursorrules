@@ -1,0 +1,6 @@
+See AGENTS.md for full instructions. Key points for inline edits:
+
+- Plain Node.js, `type: module`, no build step, no TypeScript.
+- Run `npm test` (Node's built-in test runner) before committing.
+- `scope: 'agent'` and `scope: 'global'` are intentionally equivalent in src/client/zerodb-client.js — the backend has no per-agent namespace. Don't "fix" this without reading AGENTS.md's Key Constraints section first.
+- Bump package.json's version and run `npm publish` for any runtime behavior change — consumers run this via `npx`, so a merged-but-unpublished fix is invisible to them.
