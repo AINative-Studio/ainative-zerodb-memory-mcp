@@ -37,8 +37,11 @@ export class ZeroDBClient {
     // Authenticate
     await this.authenticate();
 
-    // Validate auth by calling /api/v1/auth/me
-    await this.validateAuth();
+    // Validate auth by calling /api/v1/auth/me (skip if authenticate()
+    // already failed -- avoids a second, redundant failed request/log block)
+    if (this.authValid !== false) {
+      await this.validateAuth();
+    }
 
     return this;
   }
@@ -82,21 +85,54 @@ export class ZeroDBClient {
     }
 
     try {
+      // Refs core#246 / ZeroDB.AINative.Studio#246: bounded timeout, matching
+      // validateAuth()'s existing 10s timeout. Without this, a slow/hung
+      // backend hangs the login call indefinitely during server startup.
       const response = await axios.post(`${this.apiUrl}/api/v1/auth/login`, {  // Fixed: Added /api prefix
         email: this.username,  // API expects 'email' not 'username'
         password: this.password
-      });
+      }, { timeout: 10000 });
 
       this.token = response.data.access_token;
 
       // JWT tokens typically expire in 1 hour, refresh after 50 minutes
       this.tokenExpiry = Date.now() + (50 * 60 * 1000);
+      this.authValid = true;
 
       console.error('✅ Authenticated successfully with username/password');
     } catch (error) {
+      // Refs core#246 / ZeroDB.AINative.Studio#246: a login failure here
+      // must NOT throw. This used to propagate through initialize() ->
+      // main()'s try/catch -> process.exit(1) in index.js, which happens
+      // BEFORE server.connect(transport) is ever called -- so the MCP
+      // stdio transport never connected at all. From the client's side
+      // that looks exactly like CONNECTION_CLOSED, instead of the server
+      // starting with authValid=false (the same graceful-degradation
+      // pattern validateAuth() already uses for API-key auth failures).
       const authDetail = error.response?.data?.detail;
       const authDetailStr = typeof authDetail === 'object' ? JSON.stringify(authDetail) : (authDetail || error.message);
-      throw new Error(`Authentication failed: ${authDetailStr}`);
+      const isTimeout = error.code === 'ECONNABORTED' || /timeout/i.test(error.message);
+      this.authValid = false;
+      this.token = null;
+      console.error('');
+      console.error('===========================================');
+      console.error('  LOGIN FAILED');
+      console.error('===========================================');
+      console.error(`  Detail: ${authDetailStr}`);
+      if (isTimeout) {
+        console.error('  Login did not respond within 10 seconds.');
+        console.error('  This may be a temporary DB pool exhaustion issue,');
+        console.error('  or a concurrent login from another MCP instance');
+        console.error('  using the same credentials. Wait and retry, or');
+        console.error('  switch to ZERODB_API_KEY auth (recommended).');
+      } else {
+        console.error('  Check ZERODB_USERNAME/ZERODB_PASSWORD env vars.');
+        console.error('  API key auth (ZERODB_API_KEY) is recommended.');
+      }
+      console.error('  Server will still start -- tools requiring');
+      console.error('  authentication will return 401 errors.');
+      console.error('===========================================');
+      console.error('');
     }
   }
 
