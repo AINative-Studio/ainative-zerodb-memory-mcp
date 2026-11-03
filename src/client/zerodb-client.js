@@ -81,7 +81,37 @@ export class ZeroDBClient {
     }
 
     if (!this.username || !this.password) {
-      throw new Error('Either ZERODB_API_KEY or (ZERODB_USERNAME and ZERODB_PASSWORD) are required');
+      // Refs ZeroDB.AINative.Studio#306: no credentials at all (e.g. an
+      // anonymous scanning probe like ora.ai's agent-readiness scanner, or
+      // any MCP client that spawns this server with no ZERODB_API_KEY /
+      // ZERODB_USERNAME / ZERODB_PASSWORD set and whose auto-provision
+      // fallback in index.js also failed) must NOT throw here. The same
+      // bug shape was already fixed for *bad* username/password under
+      // core#246 (see the catch block below) -- this is the sibling case
+      // for *missing* credentials, which this branch previously threw
+      // synchronously for. An uncaught throw here propagates through
+      // initialize() -> main()'s try/catch -> process.exit(1) in index.js,
+      // BEFORE server.connect(transport) is ever reached, so the MCP
+      // stdio transport never connects at all -- indistinguishable from
+      // CONNECTION_CLOSED to any client, even though initialize/tools/list/
+      // resources/list don't require auth. Degrade gracefully instead:
+      // mark auth invalid and let the server start so anonymous
+      // introspection still works; tool calls that need auth will fail
+      // with their own 401 at call time.
+      this.authValid = false;
+      this.token = null;
+      console.error('');
+      console.error('===========================================');
+      console.error('  NO CREDENTIALS');
+      console.error('===========================================');
+      console.error('  Neither ZERODB_API_KEY nor ZERODB_USERNAME/');
+      console.error('  ZERODB_PASSWORD are set. Get a free API key:');
+      console.error('    npx zerodb-cli init');
+      console.error('  Server will still start -- tools requiring');
+      console.error('  authentication will return 401 errors.');
+      console.error('===========================================');
+      console.error('');
+      return;
     }
 
     try {
