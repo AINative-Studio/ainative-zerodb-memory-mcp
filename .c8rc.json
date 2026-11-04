@@ -1,0 +1,13 @@
+{
+  "reporter": ["text", "lcov", "html"],
+  "exclude": [
+    "tests/**",
+    "node_modules/**",
+    "coverage/**"
+  ],
+  "check-coverage": true,
+  "statements": 60,
+  "branches": 65,
+  "functions": 45,
+  "lines": 60
+}
