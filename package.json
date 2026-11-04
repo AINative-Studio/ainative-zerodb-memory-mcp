@@ -88,13 +88,13 @@
     "npm": ">=9.0.0"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
-    "axios": "^1.6.0",
-    "dotenv": "^16.4.0",
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "axios": "1.21.0",
+    "dotenv": "16.6.1",
     "glob": "^13.0.6"
   },
   "devDependencies": {
-    "c8": "^9.1.0"
+    "c8": "9.1.0"
   },
   "files": [
     "index.js",
