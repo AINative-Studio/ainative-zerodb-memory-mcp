@@ -2,13 +2,22 @@
 
 **Persistent Memory for AI Agents**
 
-Optimized MCP server providing 14 tools for agent memory management, context synthesis, auto-context middleware, and write-back actions to external services.
+Optimized MCP server providing 18 tools for agent memory management, context synthesis, auto-context middleware, and write-back actions to external services.
 
 ## Why This MCP?
 
 **Before:** Monolithic server with 77 tools consuming 10,400+ tokens
-**After:** Focused server with 14 tools consuming ~1,400 tokens
+**After:** Focused server with 18 tools consuming ~1,400 tokens
 **Result:** **87% reduction** in context footprint, faster agent decisions, better accuracy
+
+## Prerequisites
+
+- **Node.js** >= 18.0.0
+- **npm** >= 9.0.0
+- A ZeroDB API key (`ZERODB_API_KEY`), or a username/password pair — get a
+  free key with `npx zerodb-cli init`
+- Either ZeroLocal running on `localhost:8000`, or network access to
+  ZeroDB Cloud (`api.ainative.studio`)
 
 ## Key Features
 
@@ -33,8 +42,8 @@ Optimized MCP server providing 14 tools for agent memory management, context syn
 
 ```bash
 # Clone repository
-git clone https://github.com/ainative/zerodb-memory-mcp.git
-cd zerodb-memory-mcp
+git clone https://github.com/AINative-Studio/ainative-zerodb-memory-mcp.git
+cd ainative-zerodb-memory-mcp
 
 # Install dependencies
 npm install
@@ -973,9 +982,8 @@ MIT License - see LICENSE file for details
 
 ## Support
 
-- **Documentation:** https://www.ainative.studio/docs
-- **Issues:** https://github.com/ainative/zerodb-memory-mcp/issues
-- **Discord:** https://discord.gg/ainative
+See [SUPPORT.md](./SUPPORT.md) for how to get help, report a bug, or
+request a feature.
 
 ---
 
