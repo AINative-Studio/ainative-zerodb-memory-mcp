@@ -6,7 +6,7 @@
  * Persistent memory for AI agents with advanced context management
  *
  * Features:
- * - 14 tools: 9 memory + 5 write-back
+ * - 18 tools: 9 memory + 5 write-back + 4 plan-artifact
  * - ~1,200 token footprint
  * - Smart context window management
  * - Memory pruning (relevance, recency, hybrid)
