@@ -39,8 +39,21 @@ export class ZeroDBClient {
 
     // Validate auth by calling /api/v1/auth/me (skip if authenticate()
     // already failed -- avoids a second, redundant failed request/log block)
+    //
+    // Refs #33: deliberately NOT awaited. validateAuth() makes a real
+    // network call (a memory-search round trip for API-key auth, up to
+    // its own 10s timeout) purely as an early diagnostic -- it is not a
+    // correctness requirement, since ensureAuthenticated() already
+    // re-validates lazily at first real tool-call time. Awaiting it here
+    // gated the MCP server's entire "connected and ready" signal on that
+    // network latency, causing 5-12s startup times and real health-check
+    // failures in MCP clients with shorter timeouts (confirmed live via
+    // Cody CLI). Firing it without awaiting still sets authValid
+    // correctly once it resolves -- just slightly later -- and any auth
+    // failure still surfaces through the existing authValid===false /
+    // 401-at-call-time paths, unchanged.
     if (this.authValid !== false) {
-      await this.validateAuth();
+      this.validateAuth();
     }
 
     return this;
