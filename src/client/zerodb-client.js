@@ -34,13 +34,27 @@ export class ZeroDBClient {
       : '☁️  Using ZeroDB Cloud (api.ainative.studio)'
     );
 
-    // Authenticate
+    // Authenticate -- synchronous (no network call) for API-key auth; a
+    // single login round-trip for username/password, needed to obtain a
+    // token at all.
     await this.authenticate();
 
     // Validate auth by calling /api/v1/auth/me (skip if authenticate()
-    // already failed -- avoids a second, redundant failed request/log block)
+    // already failed -- avoids a second, redundant failed request/log block).
+    // This is a second, genuinely optional network round-trip purely to log
+    // a confirmation message -- NOT required for tool calls to work (a bad
+    // key still fails its own real 401 at call time). Run it in the
+    // background rather than blocking initialize()'s return: core#33 --
+    // this was adding 5-12s to every cold start (the MCP stdio transport
+    // isn't connected yet while initialize() is still pending), which
+    // caused health-check timeouts in clients with shorter windows than the
+    // backend's round-trip latency.
     if (this.authValid !== false) {
-      await this.validateAuth();
+      this.validateAuth().catch(() => {
+        // validateAuth() already catches its own errors internally and sets
+        // authValid = false; this catch only guards against an unexpected
+        // throw turning into an unhandled rejection.
+      });
     }
 
     return this;

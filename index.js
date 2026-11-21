@@ -37,6 +37,12 @@ import { autoContextHook, autoTraceHook } from './src/utils/auto-context.js';
 // Load environment variables from .env
 dotenv.config();
 
+// --quiet / MCP_QUIET=true suppresses the startup banner and verbose init
+// logs (core#33) -- all of this already goes to stderr, not stdout, so it
+// never corrupted the MCP stdio protocol, but some clients surface stderr
+// output to users/logs and asked for a quieter option.
+const QUIET = process.argv.includes('--quiet') || process.env.MCP_QUIET === 'true';
+
 // If credentials still missing, scan up the directory tree for .mcp.json and load from it.
 // This lets `npx ainative-zerodb-memory-mcp` work out of the box after `zerodb init`.
 if (!process.env.ZERODB_API_KEY && !process.env.ZERODB_USERNAME) {
@@ -182,26 +188,28 @@ let memoryManager = null;
  * Initialize ZeroDB client and memory manager
  */
 async function initialize() {
-  // Display ZeroDB branding
-  console.error('\n');
-  console.error('  ███████╗███████╗██████╗  ██████╗');
-  console.error('  ╚══███╔╝██╔════╝██╔══██╗██╔═══██╗');
-  console.error('    ███╔╝ █████╗  ██████╔╝██║   ██║');
-  console.error('   ███╔╝  ██╔══╝  ██╔══██╗██║   ██║');
-  console.error('  ███████╗███████╗██║  ██║╚██████╔╝');
-  console.error('  ╚══════╝╚══════╝╚═╝  ╚═╝ ╚═════╝');
-  console.error('\n  ZeroDB - The AINative Database');
-  console.error('\n===========================================');
-  console.error(`  Agent Memory MCP Server v${PKG_VERSION}`);
-  console.error('  Persistent Memory for AI Agents');
-  console.error('===========================================\n');
+  // Display ZeroDB branding (skip with --quiet / MCP_QUIET=true)
+  if (!QUIET) {
+    console.error('\n');
+    console.error('  ███████╗███████╗██████╗  ██████╗');
+    console.error('  ╚══███╔╝██╔════╝██╔══██╗██╔═══██╗');
+    console.error('    ███╔╝ █████╗  ██████╔╝██║   ██║');
+    console.error('   ███╔╝  ██╔══╝  ██╔══██╗██║   ██║');
+    console.error('  ███████╗███████╗██║  ██║╚██████╔╝');
+    console.error('  ╚══════╝╚══════╝╚═╝  ╚═╝ ╚═════╝');
+    console.error('\n  ZeroDB - The AINative Database');
+    console.error('\n===========================================');
+    console.error(`  Agent Memory MCP Server v${PKG_VERSION}`);
+    console.error('  Persistent Memory for AI Agents');
+    console.error('===========================================\n');
+  }
 
   // Create and initialize client
   client = new ZeroDBClient(config);
   await client.initialize();
 
   // Warn if auth validation failed (tools that need auth will fail at runtime)
-  if (client.authValid === false) {
+  if (!QUIET && client.authValid === false) {
     console.error('  Memory tools requiring authentication will return 401 errors.');
     console.error('  Server will continue running - some tools may still work.\n');
   }
@@ -209,15 +217,17 @@ async function initialize() {
   // Create memory manager with advanced features
   memoryManager = new MemoryManager(client, config);
 
-  console.error('\n✅ Memory Manager initialized with:');
-  console.error(`   • Context window: ${config.maxTokens} tokens`);
-  console.error(`   • Prune strategy: ${config.pruneStrategy}`);
-  console.error(`   • Keep recent: ${config.keepRecent} messages`);
-  console.error(`   • Auto-embed: ${config.autoEmbed ? 'enabled' : 'disabled'}`);
-  console.error(`   • Summarization: ${config.summarize.enabled ? 'enabled' : 'disabled'}`);
-  console.error(`   • Memory decay: ${config.decay.enabled ? 'enabled' : 'disabled'}`);
-  console.error('\n✅ 18 tools loaded (9 memory + 5 write-back + 4 plan-artifacts)');
-  console.error('✅ Ready for agent connections!\n');
+  if (!QUIET) {
+    console.error('\n✅ Memory Manager initialized with:');
+    console.error(`   • Context window: ${config.maxTokens} tokens`);
+    console.error(`   • Prune strategy: ${config.pruneStrategy}`);
+    console.error(`   • Keep recent: ${config.keepRecent} messages`);
+    console.error(`   • Auto-embed: ${config.autoEmbed ? 'enabled' : 'disabled'}`);
+    console.error(`   • Summarization: ${config.summarize.enabled ? 'enabled' : 'disabled'}`);
+    console.error(`   • Memory decay: ${config.decay.enabled ? 'enabled' : 'disabled'}`);
+    console.error('\n✅ 18 tools loaded (9 memory + 5 write-back + 4 plan-artifacts)');
+    console.error('✅ Ready for agent connections!\n');
+  }
 }
 
 /**

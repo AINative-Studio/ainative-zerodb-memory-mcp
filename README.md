@@ -122,6 +122,18 @@ export ZERODB_PROJECT_ID="your-project-id"
 }
 ```
 
+### Startup / Logging
+
+Startup prints a short banner and init summary to stderr (never stdout, so it doesn't interfere with the MCP stdio protocol). Suppress it with `--quiet` or `MCP_QUIET=true` if your client surfaces stderr output to users/logs:
+
+```bash
+node index.js --quiet
+# or
+MCP_QUIET=true node index.js
+```
+
+Auth validation (the optional round-trip that confirms a key/login actually works) runs in the background and never blocks startup -- the server reports ready as soon as credentials are loaded, typically well under a second, regardless of backend latency.
+
 ## Tools
 
 ### 1. `zerodb_store_memory`
