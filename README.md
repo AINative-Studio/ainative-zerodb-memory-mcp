@@ -31,10 +31,24 @@ Optimized MCP server providing 14 tools for agent memory management, context syn
 
 ## Installation
 
+### Prerequisites
+
+- Node.js >= 18.0.0
+- npm >= 9.0.0
+- A ZeroDB API key ([get one free](https://ainative.studio)) or ZeroLocal running on `localhost:8000`
+
+### Quickest start: npx (no clone needed)
+
+```bash
+npx -y ainative-zerodb-memory-mcp
+```
+
+### From source
+
 ```bash
 # Clone repository
-git clone https://github.com/ainative/zerodb-memory-mcp.git
-cd zerodb-memory-mcp
+git clone https://github.com/AINative-Studio/ainative-zerodb-memory-mcp.git
+cd ainative-zerodb-memory-mcp
 
 # Install dependencies
 npm install
