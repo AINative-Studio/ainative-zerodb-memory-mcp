@@ -4,7 +4,7 @@
 
 **Persistent Memory for AI Agents**
 
-Optimized MCP server providing 14 tools for agent memory management, context synthesis, auto-context middleware, and write-back actions to external services.
+Optimized MCP server providing 18 tools for agent memory management, context synthesis, auto-context middleware, persistent plan artifacts, and write-back actions to external services.
 
 ## Why This MCP?
 
@@ -582,6 +582,62 @@ Create a Notion page using the user's stored Notion OAuth token. (Issue #2649)
 ```
 
 **Notes:** Content is converted to Notion paragraph blocks (one per non-empty line). Lines longer than 2000 characters are truncated.
+
+---
+
+## Plan Artifact Tools
+
+Persistent, diffable plan/PRD/task artifacts stored in ZeroDB that survive session boundaries -- version history (with unified diffs) is tracked automatically on every update.
+
+### 15. `zerodb_plan_create`
+
+Create a persistent plan, PRD, or task artifact. Returns an artifact ID you can pass to the other plan tools in future sessions.
+
+**Input:**
+```json
+{
+  "title": "Q1 Feature Roadmap",
+  "type": "plan",
+  "content": "# Q1 Roadmap\n\n- Ship feature A\n- Ship feature B",
+  "session_id": "chat-123"
+}
+```
+
+**Parameters:**
+- `title` (string, required) - Artifact title (max 200 chars)
+- `content` (string, required) - Markdown content
+- `type` (string, optional) - One of `plan`, `prd`, `task` (default: `plan`)
+- `session_id` (string, optional) - Session ID to associate with
+
+---
+
+### 16. `zerodb_plan_get`
+
+Retrieve a plan artifact by ID. Use at session start to restore a plan from a previous session.
+
+**Parameters:**
+- `id` (string, required) - Artifact ID returned by `zerodb_plan_create`
+
+---
+
+### 17. `zerodb_plan_update`
+
+Update a plan artifact's content, title, or status. Content changes are diffed and stored in version history automatically.
+
+**Parameters:**
+- `id` (string, required) - Artifact ID
+- `title` (string, optional) - New title
+- `content` (string, optional) - New content
+- `status` (string, optional) - One of `draft`, `active`, `completed`
+
+---
+
+### 18. `zerodb_plan_history`
+
+Get version history for a plan artifact -- a list of diffs showing how it evolved over time.
+
+**Parameters:**
+- `id` (string, required) - Artifact ID
 
 ---
 
