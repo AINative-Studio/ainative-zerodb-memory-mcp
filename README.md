@@ -1,5 +1,7 @@
 # ZeroDB Agent Memory MCP Server
 
+[![MCP Marketplace](https://img.shields.io/badge/MCP%20Marketplace-Indexed-blueviolet)](https://getlulu.dev/mcps)
+
 **Persistent Memory for AI Agents**
 
 Optimized MCP server providing 14 tools for agent memory management, context synthesis, auto-context middleware, and write-back actions to external services.
