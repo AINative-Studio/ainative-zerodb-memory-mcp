@@ -11,7 +11,8 @@
     "start": "node index.js",
     "dev": "node --watch index.js",
     "test": "node --experimental-test-module-mocks --test tests/*.test.js",
-    "test:coverage": "c8 node --experimental-test-module-mocks --test tests/*.test.js"
+    "test:coverage": "c8 node --experimental-test-module-mocks --test tests/*.test.js",
+    "lint": "eslint ."
   },
   "keywords": [
     "mcp",
@@ -89,12 +90,13 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",
-    "axios": "1.21.0",
+    "axios": "1.21.1",
     "dotenv": "16.6.1",
-    "glob": "^13.0.6"
+    "glob": "14.0.6"
   },
   "devDependencies": {
-    "c8": "9.1.0"
+    "c8": "9.1.0",
+    "eslint": "^9.39.5"
   },
   "files": [
     "index.js",
